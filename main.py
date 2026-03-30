@@ -2,7 +2,7 @@ import os
 import uuid
 import httpx
 from io import BytesIO
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import Response
 from pydantic import BaseModel
 from twilio.rest import Client
@@ -51,18 +51,15 @@ def convert_to_jpeg(url: str) -> str | None:
         image_id = str(uuid.uuid4())
         image_store[image_id] = buffer.getvalue()
         return f"{APP_URL}/media/{image_id}"
-    except Exception:
+    except Exception as e:
+        print(f"Image conversion failed for {url}: {e}", flush=True)
         return None
 
 
-@app.post("/lead")
-def receive_lead(lead: Lead):
-    print(f"image_urls received: {lead.image_urls}", flush=True)
-    body = f"🔥 NEW WEBSITE LEAD\n\nName: {lead.name}\nPhone: {lead.phone}\nMessage: {lead.message}"
+def send_whatsapp(body: str, image_urls: list[str]):
+    converted = [u for u in (convert_to_jpeg(url) for url in image_urls) if u]
+    print(f"Converted {len(converted)} of {len(image_urls)} images", flush=True)
 
-    converted = [u for u in (convert_to_jpeg(url) for url in lead.image_urls) if u]
-
-    # First message: text + first image (if any)
     twilio_client.messages.create(
         from_=TWILIO_FROM,
         to=TWILIO_TO,
@@ -70,7 +67,6 @@ def receive_lead(lead: Lead):
         **({"media_url": [converted[0]]} if converted else {}),
     )
 
-    # Remaining images: one message each
     for image_url in converted[1:]:
         twilio_client.messages.create(
             from_=TWILIO_FROM,
@@ -79,4 +75,10 @@ def receive_lead(lead: Lead):
             media_url=[image_url],
         )
 
-    return {"status": "sent"}
+
+@app.post("/lead")
+def receive_lead(lead: Lead, background_tasks: BackgroundTasks):
+    print(f"Lead received. image_urls: {lead.image_urls}", flush=True)
+    body = f"🔥 NEW WEBSITE LEAD\n\nName: {lead.name}\nPhone: {lead.phone}\nMessage: {lead.message}"
+    background_tasks.add_task(send_whatsapp, body, lead.image_urls)
+    return {"status": "received"}
