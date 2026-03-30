@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
+from pydantic import BaseModel
 from twilio.rest import Client
 
 app = FastAPI()
@@ -15,12 +16,14 @@ def health():
     return {"status": "live"}
 
 
+class Lead(BaseModel):
+    name: str
+    phone: str
+    message: str
+
+
 @app.post("/lead")
-def receive_lead(
-    name: str = Form(...),
-    phone: str = Form(...),
-    message: str = Form(...),
-):
-    body = f"🔥 NEW WEBSITE LEAD\n\nName: {name}\nPhone: {phone}\nMessage: {message}"
+def receive_lead(lead: Lead):
+    body = f"🔥 NEW WEBSITE LEAD\n\nName: {lead.name}\nPhone: {lead.phone}\nMessage: {lead.message}"
     twilio_client.messages.create(from_=TWILIO_FROM, to=TWILIO_TO, body=body)
     return {"status": "sent"}
