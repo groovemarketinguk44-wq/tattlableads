@@ -20,10 +20,16 @@ class Lead(BaseModel):
     name: str
     phone: str
     message: str
+    image_urls: list[str] = []
 
 
 @app.post("/lead")
 def receive_lead(lead: Lead):
     body = f"🔥 NEW WEBSITE LEAD\n\nName: {lead.name}\nPhone: {lead.phone}\nMessage: {lead.message}"
-    twilio_client.messages.create(from_=TWILIO_FROM, to=TWILIO_TO, body=body)
+    twilio_client.messages.create(
+        from_=TWILIO_FROM,
+        to=TWILIO_TO,
+        body=body,
+        media_url=lead.image_urls or None,
+    )
     return {"status": "sent"}
