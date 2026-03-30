@@ -57,6 +57,7 @@ def convert_to_jpeg(url: str) -> str | None:
 
 @app.post("/lead")
 def receive_lead(lead: Lead):
+    print(f"image_urls received: {lead.image_urls}", flush=True)
     body = f"🔥 NEW WEBSITE LEAD\n\nName: {lead.name}\nPhone: {lead.phone}\nMessage: {lead.message}"
 
     converted = [u for u in (convert_to_jpeg(url) for url in lead.image_urls) if u]
