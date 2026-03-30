@@ -61,8 +61,21 @@ def receive_lead(lead: Lead):
 
     converted = [u for u in (convert_to_jpeg(url) for url in lead.image_urls) if u]
 
-    kwargs = {"from_": TWILIO_FROM, "to": TWILIO_TO, "body": body}
-    if converted:
-        kwargs["media_url"] = converted
-    twilio_client.messages.create(**kwargs)
+    # First message: text + first image (if any)
+    twilio_client.messages.create(
+        from_=TWILIO_FROM,
+        to=TWILIO_TO,
+        body=body,
+        **({"media_url": [converted[0]]} if converted else {}),
+    )
+
+    # Remaining images: one message each
+    for image_url in converted[1:]:
+        twilio_client.messages.create(
+            from_=TWILIO_FROM,
+            to=TWILIO_TO,
+            body="",
+            media_url=[image_url],
+        )
+
     return {"status": "sent"}
